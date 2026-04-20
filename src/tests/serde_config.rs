@@ -1,0 +1,290 @@
+use super::super::*;
+use serde_json::json;
+use std::collections::HashMap;
+
+#[test]
+fn endpoint_deserializes_from_snake_case_body_types() {
+    let endpoint: HttpEndpoint = serde_json::from_value(json!({
+        "method": "post",
+        "url_template": "https://example.com/{id}",
+        "url_param_specs": { "id": {} },
+        "request_body_type": "bytes",
+        "response_body_type": "utf8"
+    }))
+    .expect("snake_case endpoint config should deserialize");
+
+    let url = endpoint
+        .build_url(
+            &HashMap::from([("id".to_owned(), "1".to_owned())]),
+            &HashMap::new(),
+        )
+        .expect("deserialized endpoint should build URL");
+    assert_eq!(url, "https://example.com/1");
+}
+
+#[test]
+fn mechanics_config_new_rejects_invalid_endpoint_configuration() {
+    let endpoint = HttpEndpoint::new(HttpMethod::Get, "https://example.com/{id}", HashMap::new())
+        .with_url_param_specs(HashMap::from([(
+            "other".to_owned(),
+            UrlParamSpec::default(),
+        )]));
+
+    let mut endpoints = HashMap::new();
+    endpoints.insert("bad".to_owned(), endpoint);
+
+    let err = MechanicsConfig::new(endpoints).expect_err("config should fail fast");
+    assert!(
+        err.to_string()
+            .contains("missing url_param_specs entry for slot `id`")
+    );
+}
+
+#[test]
+fn mechanics_config_deserialize_rejects_invalid_endpoint_configuration() {
+    let err = serde_json::from_value::<MechanicsConfig>(json!({
+        "endpoints": {
+            "bad": {
+                "method": "get",
+                "url_template": "https://example.com/{id}",
+                "url_param_specs": { "other": {} }
+            }
+        }
+    }))
+    .expect_err("deserialization should fail fast");
+
+    assert!(
+        err.to_string()
+            .contains("missing url_param_specs entry for slot `id`")
+    );
+}
+
+#[test]
+fn mechanics_config_deserialize_rejects_unknown_top_level_field() {
+    let err = serde_json::from_value::<MechanicsConfig>(json!({
+        "endpoints": {},
+        "unknown": true
+    }))
+    .expect_err("unknown top-level fields must be rejected");
+
+    assert!(err.to_string().contains("unknown field"));
+}
+
+#[test]
+fn mechanics_config_rejects_invalid_header_allowlist_name() {
+    let endpoint: HttpEndpoint = serde_json::from_value(json!({
+        "method": "post",
+        "url_template": "https://example.com/{id}",
+        "url_param_specs": { "id": {} },
+        "overridable_request_headers": ["bad header"]
+    }))
+    .expect("endpoint itself should deserialize");
+
+    let mut endpoints = HashMap::new();
+    endpoints.insert("bad".to_owned(), endpoint);
+    let err = MechanicsConfig::new(endpoints).expect_err("config should fail fast");
+    assert!(err.to_string().contains("invalid header name `bad header`"));
+}
+
+#[test]
+fn mechanics_config_rejects_case_insensitive_duplicate_endpoint_headers() {
+    let endpoint: HttpEndpoint = serde_json::from_value(json!({
+        "method": "post",
+        "url_template": "https://example.com/{id}",
+        "url_param_specs": { "id": {} },
+        "headers": {
+            "x-dup": "one",
+            "X-DUP": "two"
+        }
+    }))
+    .expect("endpoint itself should deserialize");
+
+    let mut endpoints = HashMap::new();
+    endpoints.insert("bad".to_owned(), endpoint);
+    let err = MechanicsConfig::new(endpoints).expect_err("config should reject duplicate headers");
+    assert!(err.to_string().contains("duplicate header name"));
+}
+
+#[test]
+fn mechanics_config_rejects_unknown_endpoint_field() {
+    let err = serde_json::from_value::<MechanicsConfig>(json!({
+        "endpoints": {
+            "bad": {
+                "method": "get",
+                "url_template": "https://example.com/{id}",
+                "url_param_specs": { "id": {} },
+                "unknown_field": 123
+            }
+        }
+    }))
+    .expect_err("unknown endpoint fields must be rejected");
+
+    assert!(err.to_string().contains("unknown field"));
+}
+
+#[test]
+fn mechanics_config_rejects_zero_timeout_and_response_max_bytes() {
+    for endpoint in [
+        json!({
+            "method": "get",
+            "url_template": "https://example.com/{id}",
+            "url_param_specs": { "id": {} },
+            "timeout_ms": 0
+        }),
+        json!({
+            "method": "get",
+            "url_template": "https://example.com/{id}",
+            "url_param_specs": { "id": {} },
+            "response_max_bytes": 0
+        }),
+    ] {
+        let err = serde_json::from_value::<MechanicsConfig>(json!({
+            "endpoints": { "bad": endpoint }
+        }))
+        .expect_err("zero values must be rejected");
+
+        assert!(
+            err.to_string().contains("must be >= 1"),
+            "unexpected error: {err}"
+        );
+    }
+}
+
+#[test]
+fn endpoint_deserializes_response_max_bytes_from_snake_case() {
+    let endpoint: HttpEndpoint = serde_json::from_value(serde_json::json!({
+        "method": "get",
+        "url_template": "https://example.com/{id}",
+        "url_param_specs": { "id": {} },
+        "response_max_bytes": 1024
+    }))
+    .expect("endpoint config should deserialize response_max_bytes");
+
+    assert_eq!(endpoint.response_max_bytes(), Some(1024));
+}
+
+#[test]
+fn mechanics_config_allows_empty_default_for_optional_query_with_min_bytes() {
+    let endpoint: HttpEndpoint = serde_json::from_value(json!({
+        "method": "get",
+        "url_template": "https://example.com/{id}",
+        "url_param_specs": { "id": {} },
+        "query_specs": [{
+            "type": "slotted",
+            "key": "q",
+            "slot": "q",
+            "mode": "optional",
+            "default": "",
+            "min_bytes": 1
+        }]
+    }))
+    .expect("endpoint should deserialize");
+
+    let mut endpoints = HashMap::new();
+    endpoints.insert("ok".to_owned(), endpoint);
+    MechanicsConfig::new(endpoints).expect("empty optional default should be treated as omitted");
+}
+
+#[test]
+fn mechanics_config_rejects_empty_default_for_optional_allow_empty_with_min_bytes() {
+    let endpoint: HttpEndpoint = serde_json::from_value(json!({
+        "method": "get",
+        "url_template": "https://example.com/{id}",
+        "url_param_specs": { "id": {} },
+        "query_specs": [{
+            "type": "slotted",
+            "key": "q",
+            "slot": "q",
+            "mode": "optional_allow_empty",
+            "default": "",
+            "min_bytes": 1
+        }]
+    }))
+    .expect("endpoint should deserialize");
+
+    let mut endpoints = HashMap::new();
+    endpoints.insert("bad".to_owned(), endpoint);
+    let err = MechanicsConfig::new(endpoints)
+        .expect_err("empty optional_allow_empty default should violate min_bytes");
+    assert!(err.to_string().contains("too short"));
+}
+
+#[test]
+fn endpoint_deserializes_additional_http_methods() {
+    for method in ["patch", "head", "options"] {
+        let endpoint: HttpEndpoint = serde_json::from_value(json!({
+            "method": method,
+            "url_template": "https://example.com/{id}",
+            "url_param_specs": { "id": {} }
+        }))
+        .expect("endpoint should deserialize additional method");
+
+        let url = endpoint
+            .build_url(
+                &HashMap::from([("id".to_owned(), "1".to_owned())]),
+                &HashMap::new(),
+            )
+            .expect("deserialized endpoint should build URL");
+        assert_eq!(url, "https://example.com/1");
+    }
+}
+
+#[test]
+fn http_method_body_support_matrix_matches_contract() {
+    assert!(HttpMethod::Post.supports_request_body());
+    assert!(HttpMethod::Put.supports_request_body());
+    assert!(HttpMethod::Patch.supports_request_body());
+    assert!(!HttpMethod::Get.supports_request_body());
+    assert!(!HttpMethod::Delete.supports_request_body());
+    assert!(!HttpMethod::Head.supports_request_body());
+    assert!(!HttpMethod::Options.supports_request_body());
+}
+
+#[test]
+fn mechanics_config_composition_helpers_apply_validation_and_overrides() {
+    let base = MechanicsConfig::new(HashMap::from([(
+        "base".to_owned(),
+        HttpEndpoint::new(HttpMethod::Get, "https://example.com/{id}", HashMap::new())
+            .with_url_param_specs(HashMap::from([("id".to_owned(), UrlParamSpec::default())])),
+    )]))
+    .expect("base config should build");
+
+    let over = HttpEndpoint::new(
+        HttpMethod::Patch,
+        "https://example.com/{id}",
+        HashMap::new(),
+    )
+    .with_url_param_specs(HashMap::from([("id".to_owned(), UrlParamSpec::default())]));
+    let cfg = base
+        .clone()
+        .with_endpoint("base", over.clone())
+        .expect("single endpoint override should validate");
+    assert_eq!(cfg.endpoints()["base"].method(), HttpMethod::Patch);
+
+    let cfg = base
+        .with_endpoint_overrides(HashMap::from([("extra".to_owned(), over)]))
+        .expect("bulk overrides should validate");
+    assert!(cfg.endpoints().contains_key("base"));
+    assert!(cfg.endpoints().contains_key("extra"));
+
+    let removed = cfg.without_endpoint("extra");
+    assert!(!removed.endpoints().contains_key("extra"));
+}
+
+#[test]
+fn mechanics_config_composition_helpers_reject_invalid_endpoint() {
+    let base = MechanicsConfig::new(HashMap::new()).expect("base config should build");
+    let invalid = HttpEndpoint::new(HttpMethod::Get, "https://example.com/{id}", HashMap::new())
+        .with_url_param_specs(HashMap::from([(
+            "other".to_owned(),
+            UrlParamSpec::default(),
+        )]));
+
+    let err = base
+        .with_endpoint("bad", invalid)
+        .expect_err("invalid endpoint must be rejected");
+    assert!(
+        err.to_string()
+            .contains("missing url_param_specs entry for slot `id`")
+    );
+}

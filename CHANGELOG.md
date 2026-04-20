@@ -9,9 +9,16 @@ this crate adheres to
 
 ## [Unreleased]
 
-Implementation pending. See the
-[Philharmonic workspace ROADMAP](https://github.com/metastable-void/philharmonic-workspace/blob/main/ROADMAP.md)
-for the phase that populates this crate.
+## [0.1.0]
+
+Initial published API extracted from `mechanics-core`:
+
+- Added schema types: `MechanicsConfig`, `HttpEndpoint`, `HttpMethod`,
+  URL-template/query/header/retry supporting types.
+- Added pure structural validation (`MechanicsConfig::validate`,
+  `HttpEndpoint::validate_config`) and URL/header/query resolution helpers.
+- Added schema-focused tests migrated from `mechanics-core`.
+- Kept the crate Boa-free and runtime-free (`boa_*`, `reqwest`, `tokio` absent).
 
 ## [0.0.0]
 

@@ -9,3 +9,9 @@ description = "Placeholder. Part of the Philharmonic workspace."
 
 [dependencies]
 
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1

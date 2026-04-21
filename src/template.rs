@@ -18,11 +18,7 @@ pub(crate) fn parse_url_template(
     let mut seen_slots = HashSet::new();
 
     let mut cursor = 0usize;
-    loop {
-        let Some(open_rel) = template[cursor..].find('{') else {
-            break;
-        };
-
+    while let Some(open_rel) = template[cursor..].find('{') {
         let open = cursor.checked_add(open_rel).ok_or(Error::new(
             ErrorKind::InvalidInput,
             "url_template index overflow",

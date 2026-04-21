@@ -1,7 +1,10 @@
 #[cfg(test)]
 use super::MechanicsConfig;
 use super::{
-    query::{resolve_slotted_query_value, validate_byte_len, validate_min_max_bounds, validate_query_key, validate_slot_name},
+    query::{
+        resolve_slotted_query_value, validate_byte_len, validate_min_max_bounds,
+        validate_query_key, validate_slot_name,
+    },
     retry::EndpointRetryPolicy,
     template::{UrlTemplateChunk, percent_encode_component},
 };
@@ -389,10 +392,13 @@ impl HttpEndpoint {
             match chunk {
                 UrlTemplateChunk::Literal(s) => resolved_url.push_str(s),
                 UrlTemplateChunk::Slot(slot) => {
-                    let spec = self.url_param_specs.get(slot.as_str()).ok_or(std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        format!("missing url_param_specs entry for slot `{slot}`"),
-                    ))?;
+                    let spec =
+                        self.url_param_specs
+                            .get(slot.as_str())
+                            .ok_or(std::io::Error::new(
+                                std::io::ErrorKind::InvalidInput,
+                                format!("missing url_param_specs entry for slot `{slot}`"),
+                            ))?;
                     let provided = url_params.get(slot.as_str()).map(String::as_str);
                     let value = spec.resolve_value(slot, provided)?;
                     resolved_url.push_str(&percent_encode_component(&value));

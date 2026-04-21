@@ -18,10 +18,7 @@ impl MechanicsConfig {
     pub fn new(endpoints: HashMap<String, HttpEndpoint>) -> std::io::Result<Self> {
         for (name, endpoint) in &endpoints {
             endpoint.validate_config().map_err(|e| {
-                std::io::Error::new(
-                    e.kind(),
-                    format!("invalid endpoint `{name}` config: {e}"),
-                )
+                std::io::Error::new(e.kind(), format!("invalid endpoint `{name}` config: {e}"))
             })?;
         }
         Ok(Self { endpoints })
@@ -34,10 +31,7 @@ impl MechanicsConfig {
     pub fn validate(&self) -> std::io::Result<()> {
         for (name, endpoint) in &self.endpoints {
             endpoint.validate_config().map_err(|e| {
-                std::io::Error::new(
-                    e.kind(),
-                    format!("invalid endpoint `{name}` config: {e}"),
-                )
+                std::io::Error::new(e.kind(), format!("invalid endpoint `{name}` config: {e}"))
             })?;
         }
         Ok(())
@@ -61,10 +55,7 @@ impl MechanicsConfig {
     ) -> std::io::Result<Self> {
         let name = name.into();
         endpoint.validate_config().map_err(|e| {
-            std::io::Error::new(
-                e.kind(),
-                format!("invalid endpoint `{name}` config: {e}"),
-            )
+            std::io::Error::new(e.kind(), format!("invalid endpoint `{name}` config: {e}"))
         })?;
         self.endpoints.insert(name, endpoint);
         Ok(self)
@@ -79,10 +70,7 @@ impl MechanicsConfig {
     ) -> std::io::Result<Self> {
         for (name, endpoint) in overrides {
             endpoint.validate_config().map_err(|e| {
-                std::io::Error::new(
-                    e.kind(),
-                    format!("invalid endpoint `{name}` config: {e}"),
-                )
+                std::io::Error::new(e.kind(), format!("invalid endpoint `{name}` config: {e}"))
             })?;
             self.endpoints.insert(name, endpoint);
         }

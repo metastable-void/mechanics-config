@@ -133,8 +133,10 @@ impl HttpEndpoint {
                 QuerySpec::Const { .. } => None,
             })
             .collect::<HashSet<_>>();
-        let allowed_overrides =
-            allowlisted_header_names(&self.overridable_request_headers, "overridable_request_headers")?;
+        let allowed_overrides = allowlisted_header_names(
+            &self.overridable_request_headers,
+            "overridable_request_headers",
+        )?;
         let exposed_response_allowlist =
             allowlisted_header_names(&self.exposed_response_headers, "exposed_response_headers")?;
 

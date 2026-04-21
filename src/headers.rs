@@ -34,7 +34,11 @@ pub(crate) fn allowlisted_header_names(
         .collect()
 }
 
-pub(crate) fn validate_header_value(name: &str, value: &str, field_name: &str) -> std::io::Result<()> {
+pub(crate) fn validate_header_value(
+    name: &str,
+    value: &str,
+    field_name: &str,
+) -> std::io::Result<()> {
     HeaderValue::from_str(value).map_err(|e| {
         Error::new(
             ErrorKind::InvalidInput,

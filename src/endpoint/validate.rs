@@ -10,6 +10,7 @@ use std::{
 };
 
 impl HttpEndpoint {
+    /// Validates all fields of this endpoint definition.
     pub fn validate_config(&self) -> std::io::Result<()> {
         self.retry_policy.validate()?;
         if self.timeout_ms == Some(0) {
@@ -122,6 +123,7 @@ impl HttpEndpoint {
         Ok(())
     }
 
+    /// Parses and caches template/header/query state for repeated use.
     pub fn prepare_runtime(&self) -> std::io::Result<PreparedHttpEndpoint> {
         let (parsed_url_chunks, url_slot_names) = parse_url_template(&self.url_template)?;
         let url_slot_set = url_slot_names.iter().cloned().collect::<HashSet<_>>();

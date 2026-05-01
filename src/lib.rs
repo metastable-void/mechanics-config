@@ -1,3 +1,5 @@
+//! Configuration types for the Mechanics HTTP endpoint runtime.
+
 mod config;
 mod endpoint;
 mod headers;

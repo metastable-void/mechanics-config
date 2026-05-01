@@ -515,6 +515,7 @@ impl HttpEndpoint {
     }
 }
 
+/// Pre-parsed endpoint state ready for repeated URL/header building.
 #[derive(Clone, Debug)]
 pub struct PreparedHttpEndpoint {
     parsed_url_chunks: Vec<UrlTemplateChunk>,

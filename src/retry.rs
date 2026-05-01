@@ -46,6 +46,7 @@ impl Default for EndpointRetryPolicy {
 }
 
 impl EndpointRetryPolicy {
+    /// Validates that all policy fields are internally consistent.
     pub fn validate(&self) -> std::io::Result<()> {
         if self.max_attempts == 0 {
             return Err(Error::new(
@@ -76,10 +77,12 @@ impl EndpointRetryPolicy {
         Ok(())
     }
 
+    /// Returns whether the given HTTP status code is eligible for retry.
     pub fn should_retry_status(&self, status: u16) -> bool {
         self.retry_on_status.contains(&status)
     }
 
+    /// Returns whether the given transport error should be retried.
     pub fn should_retry_transport_error(&self, err: &std::io::Error) -> bool {
         if err.kind() == ErrorKind::TimedOut {
             return self.retry_on_timeout;
@@ -87,10 +90,12 @@ impl EndpointRetryPolicy {
         self.retry_on_io_errors
     }
 
+    /// Computes the backoff delay for a transport-error retry attempt.
     pub fn retry_delay_for_transport(&self, attempt: usize) -> Duration {
         Duration::from_millis(self.backoff_delay_ms(attempt))
     }
 
+    /// Computes the backoff delay for a status-code retry attempt.
     pub fn retry_delay_for_status(
         &self,
         status: u16,

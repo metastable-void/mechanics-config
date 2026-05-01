@@ -9,6 +9,10 @@ this crate adheres to
 
 ## [Unreleased]
 
+## [0.1.1]
+
+- Added crate-level and method doc comments.
+
 ## [0.1.0]
 
 Initial published API extracted from `mechanics-core`:
